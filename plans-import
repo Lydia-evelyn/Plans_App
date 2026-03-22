@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# plans-import — import checked items back from Obsidian
+# Install: copy to ~/.local/bin/plans-import and chmod +x
+
+PLANS_DIR="$HOME/plans"
+
+cd "$PLANS_DIR" && python3 -c "
+from src.database import initialize_db
+from src.logic.import_md import import_from_obsidian
+initialize_db()
+import_from_obsidian()
+"

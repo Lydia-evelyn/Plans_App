@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# plans — shell wrapper
+# Install: copy to ~/.local/bin/plans and chmod +x
+
+PLANS_DIR="$HOME/plans"
+
+if [ ! -d "$PLANS_DIR" ]; then
+    echo "Error: plans directory not found at $PLANS_DIR"
+    echo "Update PLANS_DIR in this script to point to your plans folder."
+    exit 1
+fi
+
+cd "$PLANS_DIR" && python3 main.py "$@"

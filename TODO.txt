@@ -1,0 +1,57 @@
+# Plans — Project TODO
+#
+# Format:
+#   [ ] pending
+#   [~] in progress
+#   [x] done
+#   [-] dropped / won't do
+#
+# Both you and Claude use this file.
+# Add tasks, cross them out, or reprioritise freely.
+# Claude will read this at the start of each session and update it as work is completed.
+# ─────────────────────────────────────────────────────────────────────────────
+
+## Core Features
+
+[ ] Allow editing a habit's repeat schedule from within the app (not just from Obsidian)
+[ ] Allow editing a task's due date after creation
+[ ] Delete a habit / task / project from within the app (currently must do via DB or Obsidian)
+[ ] Projects screen: show task count and completion percentage on the project list
+[ ] Subtask UI — the checklist_items table exists but there's no UI wired to it yet
+
+## Obsidian Sync
+
+[ ] Handle sync conflicts gracefully — currently export overwrites and import reads blindly; mobile edits can be lost
+[ ] Let user set habit repeat schedule from Obsidian (currently defaults to 'daily' on import)
+[ ] Import should recalculate streaks after syncing completions from Obsidian
+
+## UI / UX
+
+[ ] Calendar widget is slightly askew — minor formatting fix needed
+[ ] Dashboard: show a "last synced" timestamp so user knows when data is fresh
+[ ] Add a confirmation prompt before deleting anything (habits, tasks, projects)
+[ ] Consider a search/filter on the habits and tasks screens for when the list gets long
+
+## Housekeeping
+
+[x] Shell command: `plans` script in project root + ~/.local/bin install instructions
+[x] Error handling: PlanError class, all model/logic functions wrapped, notify_error in UI
+[x] Fix Rich markup bracket parsing issue in habits and tasks screens
+[x] Fix streak date ordering bug (DD-MM-YYYY doesn't sort lexicographically)
+[x] Fix $HOME not expanding in vault path
+[x] Modularise screens — BaseScreen / BaseAddScreen
+[x] Dashboard auto-refresh on screen resume
+[x] Fix dashboard tasks not showing checked-off state
+[x] Fix import: create new habits from Obsidian, surface unrecognised lines
+[x] Docstrings on all functions, classes, methods
+[x] USAGE.md written
+[x] README.md updated
+[x] Project on GitHub
+
+## Ideas / Backlog
+
+[ ] Weekly review screen — summarise habit streaks, tasks completed, projects moved
+[ ] Notifications / reminders (notify-send or macOS osascript) when a task is due
+[ ] Dark / light theme toggle
+[ ] Export to CSV for data portability
+[ ] iCloud backup of the SQLite DB alongside Obsidian sync

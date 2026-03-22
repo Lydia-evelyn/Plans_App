@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# plans-export — export today's checklist to Obsidian
+# Install: copy to ~/.local/bin/plans-export and chmod +x
+
+PLANS_DIR="$HOME/plans"
+
+cd "$PLANS_DIR" && python3 -c "
+from src.database import initialize_db
+from src.logic.export import export_to_obsidian
+initialize_db()
+export_to_obsidian()
+"
