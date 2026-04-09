@@ -1,3 +1,18 @@
+"""
+logic/import_md.py — Import completions and new items from an Obsidian Markdown file.
+
+MERGE BEHAVIOUR:
+  - Daily Habits: checked items are marked complete in habit_history.
+    Unknown habit names are created with a default 'daily' repeat.
+  - Today's Tasks / Projects: checked items are marked done.
+    Unknown task names are created as new open tasks.
+  - Inbox: all items are created as new tasks in the DB (unchecked → open,
+    checked → done). After processing, the ## Inbox section is removed from
+    the file so items don't get re-imported on the next run.
+
+Vault path is read from the PLANS_VAULT_PATH environment variable.
+"""
+
 import os
 import re
 from src.database import get_connection
@@ -8,13 +23,48 @@ VAULT_PATH = os.path.expandvars(os.path.expanduser(
     os.environ.get('PLANS_VAULT_PATH', '~/Documents/ObsidianVault/plans')
 ))
 
-KNOWN_SECTIONS = {"## Daily Habits", "## Today's Tasks", "## Projects"}
+KNOWN_SECTIONS = {"## Daily Habits", "## Today's Tasks", "## Projects", "## Inbox"}
 CHECKBOX_RE = re.compile(r'^- \[( |x)\] ')
 
-def import_from_obsidian():
+
+def _remove_inbox_from_file(filepath):
+    """Rewrite plans.md with the ## Inbox section removed.
+
+    Called after inbox items have been imported so they don't get re-imported.
+    Non-fatal — if the rewrite fails, the inbox just persists until the next export.
     """
-    Returns a list of warning strings for lines that were skipped or unrecognised.
-    Raises PlanError on hard failures (missing file, bad DB, unknown project, etc).
+    try:
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+
+        filtered = []
+        skip = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped == '## Inbox':
+                skip = True
+                continue
+            if skip and stripped.startswith('## '):
+                skip = False
+            if not skip:
+                filtered.append(line)
+
+        # Clean up trailing blank lines
+        while filtered and filtered[-1].strip() == '':
+            filtered.pop()
+        filtered.append('\n')
+
+        with open(filepath, 'w') as f:
+            f.writelines(filtered)
+    except OSError:
+        pass  # Non-fatal
+
+
+def import_from_obsidian():
+    """Parse plans.md and apply changes to the local database.
+
+    Returns a list of warning strings for lines that were skipped or auto-created.
+    Raises PlanError on hard failures (missing file, bad DB, unknown project).
     """
     if not VAULT_PATH:
         raise PlanError("PLANS_VAULT_PATH is not set. Add it to your ~/.zshrc and run 'source ~/.zshrc'.")
@@ -36,6 +86,7 @@ def import_from_obsidian():
         current_section = None
         current_project_id = None
         warnings = []
+        inbox_imported = False
 
         for lineno, raw in enumerate(lines, start=1):
             line = raw.strip()
@@ -50,6 +101,7 @@ def import_from_obsidian():
                     "## Daily Habits": 'habits',
                     "## Today's Tasks": 'tasks',
                     "## Projects": 'projects',
+                    "## Inbox": 'inbox',
                 }[line]
                 current_project_id = None
                 continue
@@ -91,7 +143,6 @@ def import_from_obsidian():
                         "SELECT id FROM habits WHERE name = ?", (name,)
                     ).fetchone()
                     if habit is None:
-                        # New habit added from Obsidian — create it with default daily repeat
                         conn.execute(
                             "INSERT INTO habits (name, repeat, streak, last_completed, created) VALUES (?, 'daily', 0, NULL, ?)",
                             (name, t)
@@ -142,6 +193,22 @@ def import_from_obsidian():
                                 "VALUES (?, ?, NULL, NULL, 'open', ?)",
                                 (name, current_project_id, t)
                             )
+
+                elif current_section == 'inbox':
+                    # Inbox items are always new — create them as tasks
+                    existing = conn.execute(
+                        "SELECT id FROM tasks WHERE name = ? AND project_id IS NULL",
+                        (name,)
+                    ).fetchone()
+                    if not existing:
+                        status = 'done' if checked else 'open'
+                        conn.execute(
+                            "INSERT INTO tasks (name, project_id, due, notify_before_days, status, created) "
+                            "VALUES (?, NULL, NULL, NULL, ?, ?)",
+                            (name, status, t)
+                        )
+                        warnings.append(f"Inbox: new task '{name}' added to Plans.")
+                    inbox_imported = True
                 continue
 
             # anything else that isn't blank/comment — flag it
@@ -150,11 +217,17 @@ def import_from_obsidian():
 
         conn.commit()
         conn.close()
+
+        # Remove the inbox section now that items are in the DB
+        if inbox_imported:
+            _remove_inbox_from_file(filepath)
+
         return warnings
     except PlanError:
         raise
     except Exception as e:
         raise PlanError(f"Failed to parse or apply import from '{filepath}': {e}")
+
 
 if __name__ == "__main__":
     import_from_obsidian()

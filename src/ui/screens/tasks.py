@@ -3,13 +3,14 @@ from textual.widgets import Static, Input, Footer, Button, ListView, ListItem, L
 from textual.containers import Horizontal
 from rich.text import Text
 
-from src.ui.screens.base import BaseScreen, BaseAddScreen
+from src.ui.screens.base import BaseScreen, BaseAddScreen, ConfirmScreen
 from src.models.tasks import get_all_tasks, add_task, complete_task, delete_task
 
 
 class TasksScreen(BaseScreen):
     BINDINGS = [
         ("a", "add_task", "Add"),
+        ("d", "delete_task", "Delete"),
         ("escape", "back", "Back"),
     ]
 
@@ -71,6 +72,24 @@ class TasksScreen(BaseScreen):
 
     def action_add_task(self):
         self.app.push_screen(AddTaskScreen(), callback=self.on_task_added)
+
+    def action_delete_task(self):
+        lv = self.query_one("#tasks-list", ListView)
+        index = lv.index
+        if index is not None and index < len(self._tasks):
+            task = self._tasks[index]
+            self.app.push_screen(
+                ConfirmScreen(f"Delete task '{task['name']}'?"),
+                callback=lambda confirmed: self._on_delete_confirmed(confirmed, task['id'])
+            )
+
+    def _on_delete_confirmed(self, confirmed, task_id):
+        if confirmed:
+            try:
+                delete_task(task_id)
+                self.refresh_list()
+            except Exception as e:
+                self.notify_error(e)
 
     def on_task_added(self, result):
         try:

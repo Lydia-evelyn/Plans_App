@@ -3,7 +3,7 @@ from textual.widgets import Static, Input, Footer, Button, ListView, ListItem, L
 from textual.containers import Horizontal
 from rich.text import Text
 
-from src.ui.screens.base import BaseScreen, BaseAddScreen
+from src.ui.screens.base import BaseScreen, BaseAddScreen, ConfirmScreen
 from src.models.habits import get_all_habits, add_habit, toggle_habit, delete_habit
 from src.database import get_connection
 from src.utils.date import today
@@ -12,6 +12,7 @@ from src.utils.date import today
 class HabitsScreen(BaseScreen):
     BINDINGS = [
         ("a", "add_habit", "Add"),
+        ("d", "delete_habit", "Delete"),
         ("escape", "back", "Back"),
     ]
 
@@ -80,6 +81,24 @@ class HabitsScreen(BaseScreen):
 
     def action_add_habit(self):
         self.app.push_screen(AddHabitScreen(), callback=self.on_habit_added)
+
+    def action_delete_habit(self):
+        lv = self.query_one("#habits-list", ListView)
+        index = lv.index
+        if index is not None and index < len(self._habits):
+            habit = self._habits[index]
+            self.app.push_screen(
+                ConfirmScreen(f"Delete habit '{habit['name']}'? This will remove all history."),
+                callback=lambda confirmed: self._on_delete_confirmed(confirmed, habit['id'])
+            )
+
+    def _on_delete_confirmed(self, confirmed, habit_id):
+        if confirmed:
+            try:
+                delete_habit(habit_id)
+                self.refresh_list()
+            except Exception as e:
+                self.notify_error(e)
 
     def on_habit_added(self, result):
         try:

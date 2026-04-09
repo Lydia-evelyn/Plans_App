@@ -72,6 +72,7 @@ def toggle_habit(habit_id):
                 (habit_id, t)
             )
             conn.execute("UPDATE habits SET last_completed = ? WHERE id = ?", (t, habit_id))
+        conn.commit()  # commit history change first so calculate_streak sees it
         streak = calculate_streak(habit_id)
         conn.execute("UPDATE habits SET streak = ? WHERE id = ?", (streak, habit_id))
         conn.commit()
